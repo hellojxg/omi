@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Script to run to collect memory allocation information for all running OMI processes
+# Note that in order for this to work:
+#   1.  Omi processes must have been built with debug turned on
+#   2.  Omi loglevel must be INFO or higher
+#   3.  Current user needs to be enabled for sudo
+
+SCRIPTDIR=$(dirname "$0")
+BINDIR=/opt/omi/bin
+GDB=gdb
+SUDO=sudo
+GDB_SCRIPT="$SCRIPTDIR/gdb_allocdump"
+
+if [ ! -f ${GDB_SCRIPT} ]; then
+    echo "Gdb script file ${GDB_SCRIPT} does not exist"
+    exit 1
+fi
+
+for i in omiserver omiengine
+    do PROCESSID="$(ps -ef | fgrep ${BINDIR}/$i | fgrep -v fgrep | awk '{print $2}')";
+    if [ ! -z "${PROCESSID}" ]; then
+       echo Process id of $i is: ${PROCESSID}
+       $SUDO $GDB -pid ${PROCESSID} -x ${GDB_SCRIPT} >/dev/null 2>&1
+    fi;
+done
+
+# for omiagent(s)
+ps -ef | fgrep ${BINDIR}/omiagent | fgrep -v fgrep | awk '{print $2}' | while read -r PROCESSID; do
+    echo Process id of omiagent is: ${PROCESSID}
+    $SUDO $GDB -pid ${PROCESSID} -x ${GDB_SCRIPT} >/dev/null 2>&1
+done
